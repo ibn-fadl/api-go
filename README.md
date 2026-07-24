@@ -1,5 +1,6 @@
 # api
 
+[![Test](https://github.com/naturallyfunny/api-go/actions/workflows/test.yaml/badge.svg)](https://github.com/naturallyfunny/api-go/actions/workflows/test.yaml)
 [![Go Reference](https://pkg.go.dev/badge/go.naturallyfunny.dev/api.svg)](https://pkg.go.dev/go.naturallyfunny.dev/api)
 ![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)
 ![Dependencies: none](https://img.shields.io/badge/dependencies-0-success)
@@ -403,6 +404,27 @@ To keep the surface honest, this module deliberately does **not** provide:
 - **Zero external dependencies.** `go.mod` declares no `require`d modules; the
   entire library is standard-library code. This keeps your dependency graph, and
   your supply-chain audit, one line longer than it was.
+
+## Development
+
+Run the checks locally:
+
+```sh
+go vet ./...
+go test ./...
+```
+
+A `pre-push` hook (`.githooks/pre-push`) runs the same checks automatically and
+**aborts the push** if they fail, so nothing that breaks the suite reaches the
+remote. Git does not clone hook configuration, so enable it once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook is a local, fast gate on your machine; the
+[`Test`](.github/workflows/test.yaml) workflow is the independent cloud check
+(with `-race`) that also runs on anything pushed without the hook.
 
 ## Status & roadmap
 

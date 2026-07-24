@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs vet + tests before every push. A non-zero exit aborts the push, so
+# nothing that fails the suite ever reaches the remote. Bypass with --no-verify.
+set -e
+
+echo "pre-push: go vet ./..."
+go vet ./...
+
+echo "pre-push: go test ./..."
+go test ./...
