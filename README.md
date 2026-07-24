@@ -42,6 +42,8 @@ be propagated, unchanged, to the services it calls.
 - [Design decisions & trade-offs](#design-decisions--trade-offs)
 - [Non-goals](#non-goals)
 - [Compatibility](#compatibility)
+- [Layout](#layout)
+- [Verification](#verification)
 - [Status & roadmap](#status--roadmap)
 - [License](#license)
 
@@ -405,14 +407,55 @@ To keep the surface honest, this module deliberately does **not** provide:
   entire library is standard-library code. This keeps your dependency graph, and
   your supply-chain audit, one line longer than it was.
 
-## Development
+## Layout
 
-Run the checks locally:
+The tree is as regular as the API. Each domain package is the same two files, so
+once you have read one, the rest hold no surprises — the point made in
+[Packages](#packages), shown here as a map.
+
+```
+.
+├── user/              user-id    → 401
+│   ├── context.go       ContextKey · ContextWithID · IDFromContext
+│   └── http.go          HTTPWithID middleware
+├── session/           session-id → 401   (structurally identical to user)
+│   ├── context.go
+│   └── http.go
+├── time/              time-zone  → 400   (adds IANA validation)
+│   ├── context.go
+│   └── http.go
+└── http/              the outbound + response half
+    ├── transport.go     Transport · Propagator · WithHeader
+    └── response.go      WriteJSON · WriteProblem
+```
+
+Every source file has a `*_test.go` sibling next to it.
+
+## Verification
+
+Every claim above is backed by table-driven tests you can reproduce:
 
 ```sh
 go vet ./...
-go test ./...
+go test -race -cover ./...
 ```
+
+Observed on the current tree (Go 1.25.11, `-race`):
+
+| Package       | Coverage |
+| ------------- | -------- |
+| `.../user`    | 100.0%   |
+| `.../session` | 100.0%   |
+| `.../time`    | 100.0%   |
+| `.../http`    | 90.5%    |
+
+`go vet ./...` is clean. The three domain packages are fully covered. In `http`
+the only uncovered statements are the `log.Printf` branches of `WriteJSON` /
+`WriteProblem` that fire when `json.Encode` fails writing to the
+`ResponseWriter`. A normal `httptest.ResponseRecorder` cannot provoke that —
+encoding a `map[string]any` into an in-memory buffer does not fail — so the
+branch is left uncovered on purpose rather than faked with a contrived failing
+writer. It does nothing but log; there is no logic to get wrong.
 
 A `pre-push` hook (`.githooks/pre-push`) runs the same checks automatically and
 **aborts the push** if they fail, so nothing that breaks the suite reaches the
@@ -432,7 +475,9 @@ The code is stable and the public API above is what it will remain. Packaging
 polish is still in progress:
 
 - [x] MIT `LICENSE`.
-- [x] Table-driven tests across all four packages (`go test ./...`).
+- [x] Table-driven tests across all four packages — 100% on the domain
+      packages, 90.5% overall (`go test -race -cover ./...`), see
+      [Verification](#verification).
 - [ ] Published, versioned tags for `pkg.go.dev` indexing and semantic import
       versioning.
 - [ ] Full RFC 9457 problem bodies behind `WriteProblem`.
